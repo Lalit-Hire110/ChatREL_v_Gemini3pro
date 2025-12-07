@@ -1,7 +1,10 @@
 import React from 'react';
 import { AnalysisResult, QuickScanResult } from '../types';
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
-import { Heart, Activity, Users, Zap, BrainCircuit } from 'lucide-react';
+import { 
+  Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine
+} from 'recharts';
+import { Heart, Activity, Zap, BrainCircuit, TrendingUp, Hash } from 'lucide-react';
 
 interface DashboardProps {
   result: AnalysisResult;
@@ -121,6 +124,78 @@ const Dashboard: React.FC<DashboardProps> = ({ result, quickScan }) => {
                     </div>
                     <p className="text-xs text-slate-500 leading-relaxed">{sub.reasoning}</p>
                 </div>
+            ))}
+        </div>
+      </div>
+
+      {/* ROW 2: Sentiment Timeline */}
+      <div className="lg:col-span-2 bg-white rounded-2xl shadow-lg border border-slate-100 p-6">
+        <div className="flex items-center gap-2 mb-6">
+            <TrendingUp className="w-5 h-5 text-emerald-500" />
+            <h3 className="text-lg font-semibold text-slate-700">Emotional Journey</h3>
+        </div>
+        <div className="h-[250px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={result.sentimentTimeline} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
+                    <defs>
+                        <linearGradient id="colorSentiment" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
+                            <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                        </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="index" hide />
+                    <YAxis hide domain={[-100, 100]} />
+                    <Tooltip 
+                        content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                                return (
+                                    <div className="bg-white p-3 shadow-lg rounded-lg border border-slate-100">
+                                        <p className="font-bold text-slate-700 text-sm mb-1">{payload[0].payload.label}</p>
+                                        <div className="flex items-center gap-2 text-xs">
+                                            <span className="text-slate-400">Sentiment:</span>
+                                            <span className={`font-mono font-bold ${Number(payload[0].value) > 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                                                {payload[0].value}
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            }
+                            return null;
+                        }}
+                    />
+                    <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
+                    <Area 
+                        type="monotone" 
+                        dataKey="sentiment" 
+                        stroke="#10b981" 
+                        strokeWidth={2}
+                        fillOpacity={1} 
+                        fill="url(#colorSentiment)" 
+                    />
+                </AreaChart>
+            </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* ROW 2: Word Cloud */}
+      <div className="lg:col-span-1 bg-white rounded-2xl shadow-lg border border-slate-100 p-6">
+          <div className="flex items-center gap-2 mb-6">
+            <Hash className="w-5 h-5 text-indigo-500" />
+            <h3 className="text-lg font-semibold text-slate-700">Topic Cloud</h3>
+        </div>
+        <div className="flex flex-wrap gap-2 justify-center content-start h-[250px] overflow-y-auto scrollbar-hide">
+            {result.wordCloud.map((item, i) => (
+                <span 
+                    key={i} 
+                    className="px-3 py-1 rounded-full bg-slate-50 text-slate-600 transition-all hover:bg-indigo-50 hover:text-indigo-600 hover:scale-105 cursor-default select-none flex items-center"
+                    style={{ 
+                        fontSize: `${0.75 + (item.count / 10) * 0.8}rem`,
+                        opacity: 0.5 + (item.count / 20)
+                    }}
+                >
+                    {item.word}
+                </span>
             ))}
         </div>
       </div>

@@ -2,7 +2,6 @@ import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { AnalysisResult, QuickScanResult } from "../types";
 
 // Initialize Gemini Client
-// CRITICAL: Using named parameter as per instructions
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // Models
@@ -39,6 +38,31 @@ const analysisSchema: Schema = {
         required: ['category', 'score', 'reasoning'],
       },
     },
+    sentimentTimeline: {
+      type: Type.ARRAY,
+      description: 'A series of 10-20 data points representing the emotional journey throughout the conversation.',
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          index: { type: Type.NUMBER, description: 'Relative time/index (0-100)' },
+          sentiment: { type: Type.NUMBER, description: 'Sentiment score from -100 (Negative) to 100 (Positive)' },
+          label: { type: Type.STRING, description: 'Very brief (2-3 words) label for this moment or interaction' },
+        },
+        required: ['index', 'sentiment', 'label'],
+      },
+    },
+    wordCloud: {
+      type: Type.ARRAY,
+      description: 'Top 15-20 most significant words, topics, or emojis used in the chat.',
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          word: { type: Type.STRING },
+          count: { type: Type.NUMBER, description: 'Relative importance/frequency (1-10)' },
+        },
+        required: ['word', 'count'],
+      },
+    },
     keyInsights: {
       type: Type.ARRAY,
       items: { type: Type.STRING },
@@ -54,19 +78,14 @@ const analysisSchema: Schema = {
       description: 'Names or identifiers of the two participants.',
     },
   },
-  required: ['relationshipType', 'healthScore', 'subscores', 'keyInsights', 'summary'],
+  required: ['relationshipType', 'healthScore', 'subscores', 'sentimentTimeline', 'wordCloud', 'keyInsights', 'summary'],
 };
 
 /**
  * Performs a deep analysis of the chat log using Gemini 3 Pro with Thinking Mode.
- * Leverages high thinking budget for complex inference.
  */
 export const analyzeChatLogDeep = async (chatLog: string): Promise<AnalysisResult> => {
   try {
-    // Truncate input to avoid token limit errors.
-    // The error reported max tokens 1048576 (1M).
-    // We truncate to 100,000 characters (approx 25k tokens) which is sufficient for the use case 
-    // and safe from limits.
     const MAX_CHARS = 100000;
     const processedLog = chatLog.length > MAX_CHARS 
       ? chatLog.substring(0, MAX_CHARS) + "\n...[truncated due to length]" 
@@ -75,8 +94,13 @@ export const analyzeChatLogDeep = async (chatLog: string): Promise<AnalysisResul
     const prompt = `
       You are ChatREL v4, an expert relationship analyst AI. 
       Analyze the following chat log between two people. 
+      
       Determine the relationship type, health score, and provide deep insights.
-      Focus on interaction timing, sentiment, emoji usage, and engagement markers.
+      
+      CRITICAL:
+      1. Create a 'sentimentTimeline' that maps the emotional flow of the conversation from start to finish.
+      2. Generate a 'wordCloud' of significant terms, topics, or emojis that define their dynamic.
+      3. Analyze interaction timing, sentiment, and engagement markers.
       
       CHAT LOG:
       ${processedLog}
@@ -88,11 +112,9 @@ export const analyzeChatLogDeep = async (chatLog: string): Promise<AnalysisResul
       config: {
         responseMimeType: "application/json",
         responseSchema: analysisSchema,
-        // Using Thinking Mode for deep analysis
         thinkingConfig: {
           thinkingBudget: 32768, 
         },
-        // DO NOT set maxOutputTokens when using thinkingBudget
       },
     });
 
@@ -108,11 +130,9 @@ export const analyzeChatLogDeep = async (chatLog: string): Promise<AnalysisResul
 
 /**
  * Performs a fast "Pulse Check" using Flash Lite.
- * Low latency, simple output.
  */
 export const analyzeChatLogFast = async (chatLog: string): Promise<QuickScanResult> => {
   try {
-    // Truncate for speed and token efficiency for the Lite model
     const prompt = `
       Quickly scan this chat log. Identify the dominant sentiment (Positive, Neutral, Negative, Mixed), 
       the main topic of conversation, and a one-sentence summary.
@@ -123,7 +143,7 @@ export const analyzeChatLogFast = async (chatLog: string): Promise<QuickScanResu
     `;
 
     const response = await ai.models.generateContent({
-      model: MODEL_FAST_LITE, // Flash Lite for speed
+      model: MODEL_FAST_LITE,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -154,7 +174,6 @@ export const analyzeChatLogFast = async (chatLog: string): Promise<QuickScanResu
  */
 export const sendChatMessage = async (history: {role: string, parts: {text: string}[]}[], newMessage: string, chatContext: string) => {
   try {
-    // Increase context slightly but keep safely within bounds
     const systemInstruction = `
       You are the ChatREL v4 AI assistant. You have access to a chat log analysis provided by the user.
       Answer questions about the specific relationship dynamics, health scores, or nuances found in the text.
