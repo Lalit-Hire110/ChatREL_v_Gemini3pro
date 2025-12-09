@@ -1,12 +1,11 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { AnalysisResult, QuickScanResult } from "../types";
+import { AnalysisResult } from "../types";
 
 // Initialize Gemini Client
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // Models
 const MODEL_DEEP_THINKING = 'gemini-3-pro-preview';
-const MODEL_FAST_LITE = 'gemini-flash-lite-latest';
 const MODEL_CHAT = 'gemini-3-pro-preview';
 
 // Schema for the detailed analysis
@@ -92,7 +91,7 @@ export const analyzeChatLogDeep = async (chatLog: string): Promise<AnalysisResul
       : chatLog;
 
     const prompt = `
-      You are ChatREL v4, an expert relationship analyst AI. 
+      You are ChatREL v5, an expert relationship analyst AI. 
       Analyze the following chat log between two people. 
       
       Determine the relationship type, health score, and provide deep insights.
@@ -129,53 +128,12 @@ export const analyzeChatLogDeep = async (chatLog: string): Promise<AnalysisResul
 };
 
 /**
- * Performs a fast "Pulse Check" using Flash Lite.
- */
-export const analyzeChatLogFast = async (chatLog: string): Promise<QuickScanResult> => {
-  try {
-    const prompt = `
-      Quickly scan this chat log. Identify the dominant sentiment (Positive, Neutral, Negative, Mixed), 
-      the main topic of conversation, and a one-sentence summary.
-      Return JSON.
-      
-      Chat Log Snippet:
-      ${chatLog.substring(0, 5000)}... (truncated for speed)
-    `;
-
-    const response = await ai.models.generateContent({
-      model: MODEL_FAST_LITE,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            sentiment: { type: Type.STRING, enum: ['Positive', 'Neutral', 'Negative', 'Mixed'] },
-            quickSummary: { type: Type.STRING },
-            topic: { type: Type.STRING }
-          },
-          required: ['sentiment', 'quickSummary', 'topic']
-        }
-      }
-    });
-
-    const text = response.text;
-    if (!text) throw new Error("No response from Gemini");
-    return JSON.parse(text) as QuickScanResult;
-
-  } catch (error) {
-    console.error("Fast scan failed:", error);
-    throw error;
-  }
-};
-
-/**
  * Chat with the Analyst feature using standard Gemini 3 Pro.
  */
 export const sendChatMessage = async (history: {role: string, parts: {text: string}[]}[], newMessage: string, chatContext: string) => {
   try {
     const systemInstruction = `
-      You are the ChatREL v4 AI assistant. You have access to a chat log analysis provided by the user.
+      You are the ChatREL v5 AI assistant. You have access to a chat log analysis provided by the user.
       Answer questions about the specific relationship dynamics, health scores, or nuances found in the text.
       Be helpful, objective, and empathetic but professional.
       

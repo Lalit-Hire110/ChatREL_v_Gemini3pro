@@ -27,12 +27,6 @@ export interface AnalysisResult {
   participants: string[];
 }
 
-export interface QuickScanResult {
-  sentiment: 'Positive' | 'Neutral' | 'Negative' | 'Mixed';
-  quickSummary: string;
-  topic: string;
-}
-
 export interface ChatMessage {
   id: string;
   role: 'user' | 'model';

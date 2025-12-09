@@ -1,5 +1,5 @@
 {
-  "name": "ChatREL v4",
+  "name": "ChatREL v5",
   "description": "An AI-powered relationship analysis prototype that generates interpretable health scores and relationship classifications from chat logs using Gemini 3 Pro and Flash Lite.",
   "requestFramePermissions": []
 }
